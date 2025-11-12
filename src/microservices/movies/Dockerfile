@@ -24,6 +24,8 @@ WORKDIR /root/
 # Copy the binary from builder
 COPY --from=builder /app/movies-service .
 
+RUN apk --no-cache add libc6-compat
+
 # Expose the application port
 EXPOSE 8081
 
