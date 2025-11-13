@@ -45,6 +45,11 @@ type Subscription struct {
 	EndDate   time.Time `json:"end_date"`
 }
 
+func handleMoviesHealth(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]bool{"status": true})
+}
+
 func main() {
 	// Initialize database connection
 	initDB()
@@ -56,6 +61,7 @@ func main() {
 	http.HandleFunc("/api/movies", handleMovies)
 	http.HandleFunc("/api/payments", handlePayments)
 	http.HandleFunc("/api/subscriptions", handleSubscriptions)
+	http.HandleFunc("/api/movies/health", handleMoviesHealth)
 
 	// Start server
 	port := os.Getenv("PORT")

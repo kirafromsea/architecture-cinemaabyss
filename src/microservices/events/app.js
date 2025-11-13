@@ -50,6 +50,7 @@ const connectKafka = async () => {
   }
 };
 
+// Health check
 app.get('/api/events/health', async (req, res) => {
   const kafkaStatus = producer ? 'connected' : 'disconnected';
   res.json({ 
@@ -59,6 +60,7 @@ app.get('/api/events/health', async (req, res) => {
   });
 });
 
+// Event endpoints
 app.post('/api/events/user', async (req, res) => {
   try {
     const event = {
@@ -150,7 +152,7 @@ app.post('/api/events/movie', async (req, res) => {
 
     console.log('Movie event produced:', event);
     res.status(201).json({
-      status: 'success', 
+      status: 'success',
       event: event
     });
   } catch (error) {

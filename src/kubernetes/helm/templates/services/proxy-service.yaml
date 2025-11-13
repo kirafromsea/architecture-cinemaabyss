@@ -2,41 +2,80 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: proxy-service
+  name: {{ .Release.Name }}-proxy-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: proxy-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.proxyService.replicas }}
+  replicas: {{ .Values.proxyService.replicaCount }}
   selector:
     matchLabels:
       app: proxy-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: proxy-service
     spec:
+      {{- if .Values.imagePullSecrets.dockerconfigjson }}
+      imagePullSecrets:
+      - name: {{ .Release.Name }}-dockerconfig
+      {{- end }}
       containers:
       - name: proxy-service
-        ..... тут
+        image: "{{ .Values.proxyService.image.repository }}:{{ .Values.proxyService.image.tag }}"
+        imagePullPolicy: {{ .Values.proxyService.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.proxyService.service.targetPort }}
+        env:
+        - name: PORT
+          value: {{ .Values.proxyService.env.PORT | quote }}
+        - name: MOVIES_MIGRATION_PERCENT
+          value: {{ .Values.proxyService.env.MOVIES_MIGRATION_PERCENT | quote }}
+        - name: MONOLITH_URL
+          value: {{ .Values.proxyService.env.MONOLITH_URL | quote }}
+        - name: MOVIES_SERVICE_URL
+          value: {{ .Values.proxyService.env.MOVIES_SERVICE_URL | quote }}
+        - name: EVENTS_SERVICE_URL
+          value: {{ .Values.proxyService.env.EVENTS_SERVICE_URL | quote }}
+        - name: GRADUAL_MIGRATION
+          value: {{ .Values.proxyService.env.GRADUAL_MIGRATION | quote }}
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.proxyService.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.proxyService.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: proxy-service
+  name: {{ .Release.Name }}-proxy-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: proxy-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
+  type: {{ .Values.proxyService.service.type }}
+  ports:
+  - port: {{ .Values.proxyService.service.port }}
+    targetPort: {{ .Values.proxyService.service.targetPort }}
+    protocol: TCP
   selector:
-    ... и тут
+    app: proxy-service
 {{- end }}

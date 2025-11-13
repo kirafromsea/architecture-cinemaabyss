@@ -2,75 +2,77 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: movies-service
+  name: {{ .Release.Name }}-movies-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: movies-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.moviesService.replicas }}
+  replicas: {{ .Values.moviesService.replicaCount }}
   selector:
     matchLabels:
       app: movies-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: movies-service
     spec:
+      {{- if .Values.imagePullSecrets.dockerconfigjson }}
+      imagePullSecrets:
+      - name: {{ .Release.Name }}-dockerconfig
+      {{- end }}
       containers:
       - name: movies-service
-        image: {{ .Values.moviesService.image.repository }}:{{ .Values.moviesService.image.tag }}
+        image: "{{ .Values.moviesService.image.repository }}:{{ .Values.moviesService.image.tag }}"
         imagePullPolicy: {{ .Values.moviesService.image.pullPolicy }}
         ports:
-        - containerPort: {{ .Values.moviesService.service.targetPort }}
+        - containerPort: {{ .Values.moviesService.service.port }}
         env:
         - name: PORT
-          value: "{{ .Values.moviesService.service.targetPort }}"
+          value: {{ .Values.moviesService.env.PORT | quote }}
         - name: DB_CONNECTION_STRING
-          value: "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable"
+          value: "postgres://postgres:$(DB_PASSWORD)@{{ .Release.Name }}-postgresql:5432/cinemaabyss?sslmode=disable"
         envFrom:
         - configMapRef:
-            name: cinemaabyss-config
+            name: {{ .Release.Name }}-config
         - secretRef:
-            name: cinemaabyss-secrets
+            name: {{ .Release.Name }}-secrets
         resources:
-          {{- toYaml .Values.moviesService.resources | nindent 10 }}
-        readinessProbe:
-          httpGet:
-            path: /api/movies/health
-            port: {{ .Values.moviesService.service.targetPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
         livenessProbe:
           httpGet:
-            path: /api/movies/health
-            port: {{ .Values.moviesService.service.targetPort }}
-          initialDelaySeconds: 15
-          periodSeconds: 20
-      restartPolicy: Always
-      imagePullSecrets:
-        - name: dockerconfigjson
+            path: /health
+            port: {{ .Values.moviesService.service.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.moviesService.service.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: movies-service
+  name: {{ .Release.Name }}-movies-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: movies-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
-  selector:
-    app: movies-service
+  type: {{ .Values.moviesService.service.type }}
   ports:
   - port: {{ .Values.moviesService.service.port }}
-    targetPort: {{ .Values.moviesService.service.targetPort }}
-  type: {{ .Values.moviesService.service.type }}
+    targetPort: {{ .Values.moviesService.service.port }}
+    protocol: TCP
+  selector:
+    app: movies-service
 {{- end }}

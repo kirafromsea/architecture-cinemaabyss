@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: postgres
+  name: {{ .Release.Name }}-postgres
   namespace: {{ .Values.global.namespace }}
   labels:
     app: postgres
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
-  serviceName: postgres
+  serviceName: {{ .Release.Name }}-postgres
   replicas: 1
   selector:
     matchLabels:
@@ -20,28 +20,27 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: {{ .Values.database.image.repository }}:{{ .Values.database.image.tag }}
-        imagePullPolicy: {{ .Values.database.image.pullPolicy }}
+        image: postgres:14
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5432
         env:
         - name: POSTGRES_USER
-          valueFrom:
-            configMapKeyRef:
-              name: cinemaabyss-config
-              key: DB_USER
+          value: "postgres"
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: cinemaabyss-secrets
+              name: {{ .Release.Name }}-secrets
               key: DB_PASSWORD
         - name: POSTGRES_DB
-          valueFrom:
-            configMapKeyRef:
-              name: cinemaabyss-config
-              key: DB_NAME
+          value: "cinemaabyss"
         resources:
-          {{- toYaml .Values.database.resources | nindent 10 }}
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
         volumeMounts:
         - name: postgres-data
           mountPath: /var/lib/postgresql/data
@@ -60,34 +59,29 @@ spec:
       volumes:
       - name: postgres-init-scripts
         configMap:
-          name: postgres-init-scripts
-  {{- if .Values.database.persistence.enabled }}
+          name: {{ .Release.Name }}-postgres-init-scripts
   volumeClaimTemplates:
   - metadata:
       name: postgres-data
     spec:
-      accessModes: ["{{ .Values.database.persistence.accessMode }}"]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
-          storage: {{ .Values.database.persistence.size }}
-  {{- else }}
-      - name: postgres-data
-        emptyDir: {}
-  {{- end }}
+          storage: 8Gi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: {{ .Release.Name }}-postgres
   namespace: {{ .Values.global.namespace }}
   labels:
     app: postgres
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
 spec:
   selector:
     app: postgres
   ports:
-  - port: {{ .Values.database.port }}
+  - port: 5432
     targetPort: 5432
   type: ClusterIP

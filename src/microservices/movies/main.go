@@ -30,12 +30,13 @@ func main() {
 
 	// Set up HTTP routes
 	http.HandleFunc("/api/movies", handleMovies)
-	http.HandleFunc("/api/movies/health", handleHealth)
+	http.HandleFunc("/api/movies/health", handleMoviesHealth)
+	http.HandleFunc("/health", handleHealth)
 
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8081" // Note: Using a different port than the monolith
+		port = "8081"
 	}
 	log.Printf("Starting movies microservice on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -60,12 +61,19 @@ func initDB() {
 	log.Println("Successfully connected to database")
 }
 
+// Health check
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{"status": true})
+	json.NewEncoder(w).Encode(map[string]bool{"status": true}) // ← true вместо 'healthy'
 }
 
-// Movie handlers
+// Movies health check
+func handleMoviesHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"status": true}) // ← true вместо 'healthy'
+}
+
+// Movie handlers (остаются без изменений)
 func handleMovies(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":

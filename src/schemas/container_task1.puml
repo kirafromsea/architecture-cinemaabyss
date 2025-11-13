@@ -1,0 +1,70 @@
+@startuml CinemaAbyss_Container_Diagram
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Контейнерная диаграмма C4 - КиноБездна
+
+Person(user, "Пользователь", "Смотрит фильмы через веб или мобильное приложение")
+
+System_Boundary(cinemaabyss, "КиноБездна - Микросервисная архитектура") {
+    Container(proxy, "Proxy Service", "Node.js/Python", "API Gateway\nStrangler Fig pattern\nFeature Flags")
+    
+    ' Домен пользователей
+    Container(users, "User Service", "Spring Boot", "Управление пользователями\nАутентификация")
+    ContainerDb(user_db, "User DB", "PostgreSQL", "Данные пользователей")
+    
+    ' Домен фильмов  
+    Container(movies, "Movie Service", "Spring Boot", "Метаданные фильмов\nРейтинги, жанры")
+    ContainerDb(movie_db, "Movie DB", "PostgreSQL", "Данные о фильмах")
+    
+    ' Домен платежей
+    Container(payments, "Payment Service", "Spring Boot", "Обработка платежей\nТранзакции")
+    ContainerDb(payment_db, "Payment DB", "PostgreSQL", "Платежные данные")
+    
+    ' Домен подписок
+    Container(subscriptions, "Subscription Service", "Spring Boot", "Управление подписками\nТарифы")
+    ContainerDb(subscription_db, "Subscription DB", "PostgreSQL", "Данные подписок")
+    
+    ' Домен событий
+    Container(events, "Event Service", "Spring Boot", "Обработка событий\nЛогирование")
+    ContainerQueue(kafka, "Apache Kafka", "Message Broker", "user-events\npayment-events\nmovie-events")
+    
+    ' Легачный монолит
+    Container(monolith, "Monolith", "Java/Spring", "Легачная система\n(в процессе миграции)")
+    ContainerDb(monolith_db, "Monolith DB", "PostgreSQL", "Общая БД монолита")
+}
+
+' Внешние системы
+System_Ext(payment_gateway, "Payment Gateway", "Внешний платежный шлюз")
+
+' Основные связи пользователя
+Rel(user, proxy, "HTTPS REST API", "JSON")
+
+' Связи от Proxy к сервисам
+Rel(proxy, monolith, "HTTP", "Запросы к легачной системе")
+Rel(proxy, movies, "HTTP", "MOVIES_MIGRATION_PERCENT: 50%")
+Rel(proxy, users, "HTTP", "Будущая миграция")
+Rel(proxy, payments, "HTTP", "Будущая миграция")
+Rel(proxy, subscriptions, "HTTP", "Будущая миграция")
+Rel(proxy, events, "HTTP", "Создание событий")
+
+' Связи сервисов с базами данных
+Rel(users, user_db, "Чтение/запись", "JDBC")
+Rel(movies, movie_db, "Чтение/запись", "JDBC")
+Rel(payments, payment_db, "Чтение/запись", "JDBC")
+Rel(subscriptions, subscription_db, "Чтение/запись", "JDBC")
+Rel(monolith, monolith_db, "Чтение/запись", "JDBC")
+
+' События через Kafka
+Rel(users, kafka, "Публикует события", "user.created\nuser.updated")
+Rel(movies, kafka, "Публикует события", "movie.viewed\nmovie.rated")
+Rel(payments, kafka, "Публикует события", "payment.success\npayment.failed")
+Rel(subscriptions, kafka, "Публикует события", "subscription.created\nsubscription.updated")
+Rel(kafka, events, "Потребляет события", "Все типы событий")
+
+' Внешние связи платежей
+Rel(payments, payment_gateway, "Обработка платежей", "HTTPS API")
+
+' Легенда
+SHOW_LEGEND()
+
+@enduml

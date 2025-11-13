@@ -1,23 +1,20 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: cinemaabyss-ingress
+  name: {{ .Release.Name }}-ingress
   namespace: {{ .Values.global.namespace }}
   labels:
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-  {{- with .Values.ingress.annotations }}
+    chart: {{ include "cinemaabyss.chart" . }}
+    release: {{ .Release.Name }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
-  {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className }}
-  {{- end }}
   rules:
   {{- range .Values.ingress.hosts }}
-  - host: {{ .host }}
+  - host: {{ .host | quote }}
     http:
       paths:
       {{- range .paths }}
@@ -25,9 +22,27 @@ spec:
         pathType: {{ .pathType }}
         backend:
           service:
-            name: {{ .service }}
+            name: {{ $.Release.Name }}-proxy-service
             port:
-              number: {{ .port }}
+              number: 80
       {{- end }}
+      # Direct access to events for tests
+      - path: /api/events
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $.Release.Name }}-events-service
+            port:
+              number: 8082
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+  {{- range .Values.ingress.tls }}
+  - hosts:
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+    secretName: {{ .secretName }}
+  {{- end }}
   {{- end }}
 {{- end }}

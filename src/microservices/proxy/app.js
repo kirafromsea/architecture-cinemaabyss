@@ -19,10 +19,21 @@ const EVENTS_SERVICE_URL = process.env.EVENTS_SERVICE_URL || 'http://events-serv
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', service: 'proxy' });
+  res.json({ status: true, service: 'proxy' });
 });
 
-// Прокси для events
+// Health check для movies
+app.get('/api/movies/health', (req, res) => {
+  console.log('Movies health check - returning success');
+  res.json({ 
+    status: true, 
+    service: 'movies',
+    timestamp: new Date().toISOString(),
+    migrationPercent: MOVIES_MIGRATION_PERCENT
+  });
+});
+
+// Прокси для events (всегда в новый сервис)
 app.all('/api/events*', async (req, res) => {
   const path = req.path.replace('/api/events', '') || '';
   const targetUrl = `${EVENTS_SERVICE_URL}/api/events${path}`;
@@ -55,16 +66,6 @@ app.all('/api/events*', async (req, res) => {
       });
     }
   }
-});
-
-app.all('/api/movies/health', (req, res) => {
-  console.log('Movies health check - returning success');
-  res.json({ 
-    status: true, 
-    service: 'movies',
-    timestamp: new Date().toISOString(),
-    migrationPercent: MOVIES_MIGRATION_PERCENT
-  });
 });
 
 // Прокси для movies с Feature Flag
