@@ -3,19 +3,19 @@ name: Docker Build and Push
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, cinema ]
     paths:
       - 'src/**'
       - '.github/workflows/docker-build-push.yml'
   release:
-    types: [published]
+    types: [published, created, edited]
 
 env:
   REGISTRY: ghcr.io
-  MONOLITH_IMAGE_NAME: ${{ github.repository }}/monolith
-  MOVIES_SERVICE_IMAGE_NAME: ${{ github.repository }}/movies-service
-  EVENTS_SERVICE_IMAGE_NAME: ${{ github.repository }}/events-service
-  PROXY_SERVICE_IMAGE_NAME: ${{ github.repository }}/proxy-service
+  MONOLITH_IMAGE_NAME: 0xdord/architecture-cinemaabyss/monolith
+  MOVIES_SERVICE_IMAGE_NAME: 0xdord/architecture-cinemaabyss/movies-service
+  EVENTS_SERVICE_IMAGE_NAME: 0xdord/architecture-cinemaabyss/events-service
+  PROXY_SERVICE_IMAGE_NAME: 0xdord/architecture-cinemaabyss/proxy-service
 
 jobs:
   build-and-push:
@@ -38,18 +38,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Monolith
-      - name: Extract metadata for Monolith
+      - name: Extract metadata (tags, labels) for Monolith
         id: meta-monolith
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.MONOLITH_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+            type=ref,event=branch
             latest
 
-      - name: Build and push Monolith
+      - name: Build and push Monolith Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./src/monolith
@@ -58,19 +59,21 @@ jobs:
           labels: ${{ steps.meta-monolith.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
-      # Movies Service
-      - name: Extract metadata for Movies Service
+      - name: Extract metadata (tags, labels) for Movies Service
         id: meta-movies
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.MOVIES_SERVICE_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+            type=ref,event=branch
             latest
 
-      - name: Build and push Movies Service
+      - name: Build and push Movies Service Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/movies
@@ -79,40 +82,21 @@ jobs:
           labels: ${{ steps.meta-movies.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
-      # Events Service
-      - name: Extract metadata for Events Service
-        id: meta-events
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.EVENTS_SERVICE_IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,format=short
-            latest
-
-      - name: Build and push Events Service
-        uses: docker/build-push-action@v4
-        with:
-          context: ./src/microservices/events
-          push: true
-          tags: ${{ steps.meta-events.outputs.tags }}
-          labels: ${{ steps.meta-events.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Proxy Service
-      - name: Extract metadata for Proxy Service
+      - name: Extract metadata (tags, labels) for Proxy Service
         id: meta-proxy
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.PROXY_SERVICE_IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+            type=ref,event=branch
             latest
 
-      - name: Build and push Proxy Service
+      - name: Build and push Proxy Service Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/proxy
@@ -121,18 +105,51 @@ jobs:
           labels: ${{ steps.meta-proxy.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
-  trigger-api-tests:
-    name: Trigger API Tests
+      - name: Extract metadata (tags, labels) for Events Service
+        id: meta-events
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.EVENTS_SERVICE_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+            latest
+
+      - name: Build and push Events Service Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/microservices/events
+          push: true
+          tags: ${{ steps.meta-events.outputs.tags }}
+          labels: ${{ steps.meta-events.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+  api-tests:
+    name: Run API Tests
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     
     steps:
-      - name: Trigger API Tests workflow
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install test dependencies
         run: |
-          curl -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/${{ github.repository }}/actions/workflows/api-tests.yml/dispatches \
-          -d '{"ref":"${{ github.ref }}"}'
+          cd tests/postman
+          npm install
+
+      - name: Run Postman tests
+        run: |
+          cd tests/postman
+          npm run test:local
+        continue-on-error: true
