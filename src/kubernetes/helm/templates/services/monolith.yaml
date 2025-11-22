@@ -2,77 +2,75 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-monolith
+  name: monolith
   namespace: {{ .Values.global.namespace }}
   labels:
     app: monolith
-    chart: {{ include "cinemaabyss.chart" . }}
-    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.monolith.replicaCount }}
+  replicas: {{ .Values.monolith.replicas }}
   selector:
     matchLabels:
       app: monolith
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: monolith
     spec:
-      {{- if .Values.imagePullSecrets.dockerconfigjson }}
-      imagePullSecrets:
-      - name: {{ .Release.Name }}-dockerconfig
-      {{- end }}
       containers:
       - name: monolith
-        image: "{{ .Values.monolith.image.repository }}:{{ .Values.monolith.image.tag }}"
+        image: {{ .Values.monolith.image.repository }}:{{ .Values.monolith.image.tag }}
         imagePullPolicy: {{ .Values.monolith.image.pullPolicy }}
         ports:
-        - containerPort: {{ .Values.monolith.service.port }}
+        - containerPort: {{ .Values.monolith.service.targetPort }}
         env:
         - name: PORT
-          value: {{ .Values.monolith.env.PORT | quote }}
+          value: "{{ .Values.monolith.service.targetPort }}"
         - name: DB_CONNECTION_STRING
-          value: "postgres://postgres:$(DB_PASSWORD)@{{ .Release.Name }}-postgresql:5432/cinemaabyss?sslmode=disable"
+          value: "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable"
         envFrom:
         - configMapRef:
-            name: {{ .Release.Name }}-config
+            name: cinemaabyss-config
         - secretRef:
-            name: {{ .Release.Name }}-secrets
+            name: cinemaabyss-secrets
         resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.monolith.service.port }}
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          {{- toYaml .Values.monolith.resources | nindent 10 }}
         readinessProbe:
           httpGet:
             path: /health
-            port: {{ .Values.monolith.service.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+            port: {{ .Values.monolith.service.targetPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.monolith.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 20
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: dockerconfigjson
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-monolith
+  name: monolith
   namespace: {{ .Values.global.namespace }}
   labels:
     app: monolith
-    chart: {{ include "cinemaabyss.chart" . }}
-    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  type: {{ .Values.monolith.service.type }}
-  ports:
-  - port: {{ .Values.monolith.service.port }}
-    targetPort: {{ .Values.monolith.service.port }}
-    protocol: TCP
   selector:
     app: monolith
+  ports:
+  - port: {{ .Values.monolith.service.port }}
+    targetPort: {{ .Values.monolith.service.targetPort }}
+  type: {{ .Values.monolith.service.type }}
 {{- end }}

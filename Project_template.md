@@ -117,6 +117,11 @@ jobs:
 
 ### Proxy в Kubernetes
 
+#### Шаг 0
+minikube start --driver=docker
+minikube status
+minikube delete - если нужно удалить и очистить
+
 #### Шаг 1
 Для деплоя в kubernetes необходимо залогиниться в docker registry Github'а.
 1. Создайте Personal Access Token (PAT) https://github.com/settings/tokens . Создавайте class с правом read:packages
@@ -262,6 +267,8 @@ cat .docker/config.json | base64
   9. Добавьте в /etc/hosts
   127.0.0.1 cinemaabyss.example.com
 
+  echo "127.0.0.1 cinemaabyss.example.com" | sudo tee -a /etc/hosts
+
   10. Вызовите
   ```bash
   minikube tunnel
@@ -279,7 +286,8 @@ cat .docker/config.json | base64
 
 #### Шаг 3
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
-
+[Вывод списка movies](screenshots/movies.png)
+[Запуск тестов](screenshots/tests_result_after_minikube.png)
 
 # Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 
@@ -337,7 +345,7 @@ kubectl delete  namespace cinemaabyss
 ```
 Запустите 
 ```bash
-helm install cinemaabyss .\src\kubernetes\helm --namespace cinemaabyss --create-namespace
+helm install cinemaabyss ./src/kubernetes/helm --namespace cinemaabyss --create-namespace
 ```
 Если в процессе будет ошибка
 ```code

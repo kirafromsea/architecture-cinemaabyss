@@ -2,72 +2,75 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-events-service
+  name: events-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: events-service
-    chart: {{ include "cinemaabyss.chart" . }}
-    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.eventsService.replicaCount }}
+  replicas: {{ .Values.eventsService.replicas }}
   selector:
     matchLabels:
       app: events-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: events-service
     spec:
-      {{- if .Values.imagePullSecrets.dockerconfigjson }}
-      imagePullSecrets:
-      - name: {{ .Release.Name }}-dockerconfig
-      {{- end }}
       containers:
       - name: events-service
-        image: "{{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}"
+        image: {{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}
         imagePullPolicy: {{ .Values.eventsService.image.pullPolicy }}
         ports:
-        - containerPort: {{ .Values.eventsService.service.port }}
+        - containerPort: {{ .Values.eventsService.service.targetPort }}
         env:
         - name: PORT
-          value: {{ .Values.eventsService.env.PORT | quote }}
-        - name: KAFKA_BROKER
-          value: {{ .Values.eventsService.env.KAFKA_BROKER | quote }}
+          value: "{{ .Values.eventsService.service.targetPort }}"
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        envFrom:
+        - configMapRef:
+            name: cinemaabyss-config
+        - secretRef:
+            name: cinemaabyss-secrets
         resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.eventsService.service.port }}
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          {{- toYaml .Values.eventsService.resources | nindent 10 }}
         readinessProbe:
           httpGet:
-            path: /health
-            port: {{ .Values.eventsService.service.port }}
+            path: /api/events/health
+            port: {{ .Values.eventsService.service.targetPort }}
           initialDelaySeconds: 5
-          periodSeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/events/health
+            port: {{ .Values.eventsService.service.targetPort }}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      restartPolicy: Always
+      imagePullSecrets:
+        - name: dockerconfigjson
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-events-service
+  name: events-service
   namespace: {{ .Values.global.namespace }}
   labels:
     app: events-service
-    chart: {{ include "cinemaabyss.chart" . }}
-    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  type: {{ .Values.eventsService.service.type }}
-  ports:
-  - port: {{ .Values.eventsService.service.port }}
-    targetPort: {{ .Values.eventsService.service.port }}
-    protocol: TCP
   selector:
     app: events-service
+  ports:
+  - port: {{ .Values.eventsService.service.port }}
+    targetPort: {{ .Values.eventsService.service.targetPort }}
+  type: {{ .Values.eventsService.service.type }}
 {{- end }}

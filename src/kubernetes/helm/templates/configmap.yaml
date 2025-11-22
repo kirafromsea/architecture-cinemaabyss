@@ -1,26 +1,22 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-config
+  name: cinemaabyss-config
   namespace: {{ .Values.global.namespace }}
   labels:
-    chart: {{ include "cinemaabyss.chart" . }}
-    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
 data:
   # Database configuration
-  DB_HOST: "{{ .Values.database.host }}"
-  DB_PORT: "{{ .Values.database.port }}"
-  DB_NAME: "{{ .Values.database.name }}"
-  DB_USER: "{{ .Values.database.user }}"
+  DB_HOST: {{ .Values.database.host | quote }}
+  DB_PORT: {{ .Values.database.port | quote }}
+  DB_NAME: {{ .Values.database.name | quote }}
+  DB_USER: {{ .Values.database.user | quote }}
 
   # Service URLs
-  MONOLITH_URL: "{{ .Values.proxyService.env.MONOLITH_URL }}"
-  MOVIES_SERVICE_URL: "{{ .Values.proxyService.env.MOVIES_SERVICE_URL }}"
-  EVENTS_SERVICE_URL: "{{ .Values.proxyService.env.EVENTS_SERVICE_URL }}"
+  MONOLITH_URL: "http://monolith:{{ .Values.monolith.service.port }}"
+  MOVIES_SERVICE_URL: "http://movies-service:{{ .Values.moviesService.service.port }}"
   
   # Strangler Fig configuration
-  GRADUAL_MIGRATION: "{{ .Values.proxyService.env.GRADUAL_MIGRATION }}"
-  MOVIES_MIGRATION_PERCENT: "{{ .Values.proxyService.env.MOVIES_MIGRATION_PERCENT }}"
-
-  # Kafka configuration
-  KAFKA_BROKER: "{{ .Values.eventsService.env.KAFKA_BROKER }}"
+  GRADUAL_MIGRATION: {{ .Values.config.gradualMigration | quote }}
+  MOVIES_MIGRATION_PERCENT: {{ .Values.config.moviesMigrationPercent | quote }}

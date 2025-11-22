@@ -18,39 +18,20 @@ spec:
               service:
                 name: proxy-service
                 port:
-                  number: 80
+                  number: 8080
+
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: proxy-service
+                port:
+                  number: 8080
+
           - path: /api/events
             pathType: Prefix
             backend:
               service:
                 name: events-service
                 port:
-                  number: 8082
-          - path: /api/movies
-            pathType: Prefix
-            backend:
-              service:
-                name: proxy-service
-                port:
-                  number: 80
-          - path: /api/users
-            pathType: Prefix
-            backend:
-              service:
-                name: proxy-service
-                port:
-                  number: 80
-          - path: /api/payments
-            pathType: Prefix
-            backend:
-              service:
-                name: proxy-service
-                port:
-                  number: 80
-          - path: /api/subscriptions
-            pathType: Prefix
-            backend:
-              service:
-                name: proxy-service
-                port:
-                  number: 80
+                  number: 8081
