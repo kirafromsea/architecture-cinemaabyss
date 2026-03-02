@@ -13,16 +13,13 @@ spec:
   selector:
     matchLabels:
       app: proxy-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: proxy-service
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: proxy-service
         image: {{ .Values.proxyService.image.repository }}:{{ .Values.proxyService.image.tag }}
@@ -33,37 +30,17 @@ spec:
         - name: PORT
           value: "{{ .Values.proxyService.service.targetPort }}"
         - name: MONOLITH_URL
-          value: "http://monolith:8080"
+          value: "http://monolith:{{ .Values.monolith.service.port }}"
         - name: MOVIES_SERVICE_URL
-          value: "http://movies-service:8081"
+          value: "http://movies-service:{{ .Values.moviesService.service.port }}"
         - name: EVENTS_SERVICE_URL
-          value: "http://events-service:8082"
+          value: "http://events-service:{{ .Values.eventsService.service.port }}"
         - name: GRADUAL_MIGRATION
-          value: "true"
+          value: "{{ .Values.config.gradualMigration }}"
         - name: MOVIES_MIGRATION_PERCENT
-          value: "50"
-        envFrom:
-        - configMapRef:
-            name: cinemaabyss-config
-        - secretRef:
-            name: cinemaabyss-secrets
+          value: "{{ .Values.config.moviesMigrationPercent }}"
         resources:
           {{- toYaml .Values.proxyService.resources | nindent 10 }}
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.proxyService.service.targetPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.proxyService.service.targetPort }}
-          initialDelaySeconds: 15
-          periodSeconds: 20
-      restartPolicy: Always
-      imagePullSecrets:
-        - name: dockerconfigjson
 ---
 apiVersion: v1
 kind: Service
@@ -75,10 +52,12 @@ metadata:
     app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  selector:
-    app: proxy-service
+  type: {{ .Values.proxyService.service.type }}
   ports:
   - port: {{ .Values.proxyService.service.port }}
     targetPort: {{ .Values.proxyService.service.targetPort }}
-  type: {{ .Values.proxyService.service.type }}
+    protocol: TCP
+    name: http
+  selector:
+    app: proxy-service
 {{- end }}

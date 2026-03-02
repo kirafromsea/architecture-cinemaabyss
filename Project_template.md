@@ -268,6 +268,8 @@ cat .docker/config.json | base64
   127.0.0.1 cinemaabyss.example.com
 
   echo "127.0.0.1 cinemaabyss.example.com" | sudo tee -a /etc/hosts
+  cat /etc/hosts
+  ping cinemaabyss.example.com
 
   10. Вызовите
   ```bash
@@ -362,6 +364,9 @@ minikube tunnel
 Потом вызовите 
 https://cinemaabyss.example.com/api/movies
 и приложите скриншот развертывания helm и вывода https://cinemaabyss.example.com/api/movies
+
+[Вывод списка mvies](screenshots/movies-helm.png)
+[Развертывание helm](screenshots/helm-install.png)
 
 ## Удаляем все
 

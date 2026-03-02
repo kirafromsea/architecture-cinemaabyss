@@ -5,8 +5,7 @@ global:
 
 # Image pull secrets
 imagePullSecrets:
-  dockerconfigjson: ewoJImF1dGhzIjoge30sCgkiY3JlZHNTdG9yZSI6ICJkZXNrdG9wIiwKCSJjdXJyZW50Q29udGV4dCI6ICJkZXNrdG9wLWxpbnV4Igp9
-
+  dockerconfigjson: ewoJImF1dGhzIjogewoJCSJnaGNyLmlvIjogewoJCQkiYXV0aCI6ICJhMmx5WVdaeWIyMXpaV0U2WjJod1gydzJWRlJLTVROeFZUTlBXamhVUlRoWFUxUlFNVk52T0c5VWVIRjZWakJCWlhNMmJBPT0iCgkJfQoJfSwKCSJjcmVkc1N0b3JlIjogImRlc2t0b3AiLAoJImN1cnJlbnRDb250ZXh0IjogImRlc2t0b3AtbGludXgiCn0K
 # Database configuration
 database:
   host: postgres
@@ -113,6 +112,9 @@ eventsService:
 # Kafka configuration
 kafka:
   enabled: true
+  service: 
+    name: kafka
+    port: 9092
   image:
     repository: wurstmeister/kafka
     tag: 2.13-2.7.0
@@ -160,7 +162,7 @@ zookeeper:
     size: 1Gi
     accessMode: ReadWriteOnce
 
-# Ingress configuration - ИСПРАВЛЕННЫЙ РАЗДЕЛ
+# Ingress configuration
 ingress:
   enabled: true
   className: nginx

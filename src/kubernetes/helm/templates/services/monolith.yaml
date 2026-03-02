@@ -43,15 +43,15 @@ spec:
           {{- toYaml .Values.monolith.resources | nindent 10 }}
         readinessProbe:
           httpGet:
-            path: /health
+            path: /api/users
             port: {{ .Values.monolith.service.targetPort }}
-          initialDelaySeconds: 10
+          initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: /health
+            path: /api/users
             port: {{ .Values.monolith.service.targetPort }}
-          initialDelaySeconds: 30
+          initialDelaySeconds: 15
           periodSeconds: 20
       restartPolicy: Always
       imagePullSecrets:

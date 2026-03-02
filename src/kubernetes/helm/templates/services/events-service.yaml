@@ -13,19 +13,16 @@ spec:
   selector:
     matchLabels:
       app: events-service
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: events-service
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: events-service
-        image: {{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}
+        image: "{{ .Values.eventsService.image.repository }}:{{ .Values.eventsService.image.tag }}"
         imagePullPolicy: {{ .Values.eventsService.image.pullPolicy }}
         ports:
         - containerPort: {{ .Values.eventsService.service.targetPort }}
@@ -33,29 +30,22 @@ spec:
         - name: PORT
           value: "{{ .Values.eventsService.service.targetPort }}"
         - name: KAFKA_BROKERS
-          value: "kafka:9092"
-        envFrom:
-        - configMapRef:
-            name: cinemaabyss-config
-        - secretRef:
-            name: cinemaabyss-secrets
+          value: "{{ .Values.kafka.service.name | default "kafka" }}:{{ .Values.kafka.service.port | default 9092 }}"
+        - name: DB_HOST
+          value: "{{ .Values.database.host }}"
+        - name: DB_PORT
+          value: "{{ .Values.database.port }}"
+        - name: DB_NAME
+          value: "{{ .Values.database.name }}"
+        - name: DB_USER
+          value: "{{ .Values.database.user }}"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
         resources:
           {{- toYaml .Values.eventsService.resources | nindent 10 }}
-        readinessProbe:
-          httpGet:
-            path: /api/events/health
-            port: {{ .Values.eventsService.service.targetPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /api/events/health
-            port: {{ .Values.eventsService.service.targetPort }}
-          initialDelaySeconds: 15
-          periodSeconds: 20
-      restartPolicy: Always
-      imagePullSecrets:
-        - name: dockerconfigjson
 ---
 apiVersion: v1
 kind: Service
@@ -64,13 +54,13 @@ metadata:
   namespace: {{ .Values.global.namespace }}
   labels:
     app: events-service
-    app.kubernetes.io/name: {{ include "cinemaabyss.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  selector:
-    app: events-service
+  type: {{ .Values.eventsService.service.type }}
   ports:
   - port: {{ .Values.eventsService.service.port }}
     targetPort: {{ .Values.eventsService.service.targetPort }}
-  type: {{ .Values.eventsService.service.type }}
+    protocol: TCP
+    name: http
+  selector:
+    app: events-service
 {{- end }}
